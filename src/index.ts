@@ -1,8 +1,16 @@
 import 'dotenv/config';
 import { App } from './app';
 
+// Create app instance
 const app = new App();
-app.listen();
+
+// Export for Firebase Functions
+export const api = app.getApp();
+
+// For local development
+if (require.main === module) {
+  app.listen();
+}
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');

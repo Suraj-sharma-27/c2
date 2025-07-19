@@ -1,0 +1,32 @@
+{
+  "functions": {
+    "source": ".",
+    "runtime": "nodejs18",
+    "predeploy": ["npm run build"],
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "*.local",
+      ".env*",
+      "demo.html",
+      "get-token.html",
+      "setup-firebase-env.ps1"
+    ]
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "function": "api"
+      }
+    ]
+  }
+}
