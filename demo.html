@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Connect - Admin Google Signup Demo</title>    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .auth-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #3367d6;
+        }
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .endpoint-info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 Campus Connect Authentication Demo</h1>
+        
+        <div class="endpoint-info">
+            <h3>🔗 Available API Endpoints:</h3>
+            <ul>
+                <li><strong>POST</strong> /api/v1/signup/admin/google - Admin Google Signup</li>
+                <li><strong>POST</strong> /api/v1/signup/student - Student Email Signup</li>
+                <li><strong>POST</strong> /api/v1/login/admin - Admin Login</li>
+                <li><strong>POST</strong> /api/v1/login/student - Student Login</li>
+                <li><strong>GET</strong> /api/v1/health - Health Check</li>
+            </ul>
+        </div>
+
+        <div class="auth-section">
+            <h3>👨‍💼 Admin Google Signup</h3>
+            <p>Click the button below to sign up as an admin using Google OAuth:</p>
+            <button onclick="signInWithGoogle()">🔐 Sign Up with Google (Admin)</button>
+        </div>
+
+        <div class="auth-section">
+            <h3>🎓 Student Email Signup</h3>
+            <input type="email" id="studentEmail" placeholder="Student Email">
+            <input type="password" id="studentPassword" placeholder="Password">
+            <button onclick="signupStudent()">📝 Sign Up Student</button>
+        </div>
+
+        <div class="auth-section">
+            <h3>🔑 Login Testing</h3>
+            <input type="email" id="loginEmail" placeholder="Email">
+            <input type="password" id="loginPassword" placeholder="Password">
+            <button onclick="loginAdmin()">👨‍💼 Login as Admin</button>
+            <button onclick="loginStudent()">🎓 Login as Student</button>
+        </div>
+
+        <div class="auth-section">
+            <h3>🩺 Health Check</h3>
+            <button onclick="checkHealth()">Check API Health</button>
+        </div>        <div id="result"></div>
+    </div>
+
+    <script>
+        let firebaseApp;
+        let auth;
+
+        // Initialize Firebase with configuration from backend
+        async function initializeFirebase() {
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/config/firebase');
+                const configData = await response.json();
+                
+                if (!configData.success) {
+                    throw new Error('Failed to fetch Firebase configuration');
+                }
+
+                const firebaseConfig = configData.data;
+                
+                // Initialize Firebase with compat library
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                
+                console.log('Firebase initialized successfully');
+                
+            } catch (error) {
+                console.error('Firebase initialization failed:', error);
+                showResult({ error: 'Failed to initialize Firebase: ' + error.message }, false);
+            }
+        }
+
+        // Initialize Firebase when page loads
+        window.addEventListener('load', initializeFirebase);
+
+        window.signInWithGoogle = async function() {
+            if (!auth) {
+                showResult({ error: 'Firebase not initialized' }, false);
+                return;
+            }
+
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.addScope('email');
+                provider.addScope('profile');
+                
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+                const idToken = await user.getIdToken();
+                
+                // Send to backend
+                const response = await fetch('http://localhost:3001/api/v1/signup/admin/google', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        idToken: idToken,
+                        displayName: user.displayName,
+                        photoURL: user.photoURL
+                    })
+                });
+                
+                const data = await response.json();
+                showResult(data, response.ok);
+                
+            } catch (error) {
+                showResult({ error: error.message }, false);
+            }
+        };
+
+        window.signupStudent = async function() {
+            const email = document.getElementById('studentEmail').value;
+            const password = document.getElementById('studentPassword').value;
+            
+            if (!email || !password) {
+                showResult({ error: 'Email and password are required' }, false);
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/signup/student', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                showResult(data, response.ok);
+                
+            } catch (error) {
+                showResult({ error: error.message }, false);
+            }
+        };
+
+        window.loginAdmin = async function() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                showResult({ error: 'Email and password are required' }, false);
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/login/admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                showResult(data, response.ok);
+                
+            } catch (error) {
+                showResult({ error: error.message }, false);
+            }
+        };
+
+        window.loginStudent = async function() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                showResult({ error: 'Email and password are required' }, false);
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/login/student', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                showResult(data, response.ok);
+                
+            } catch (error) {
+                showResult({ error: error.message }, false);
+            }
+        };
+
+        window.checkHealth = async function() {
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/health');
+                const data = await response.json();
+                showResult(data, response.ok);
+                
+            } catch (error) {
+                showResult({ error: error.message }, false);
+            }
+        };
+
+        function showResult(data, isSuccess) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
